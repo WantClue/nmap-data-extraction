@@ -12,13 +12,13 @@ You could run this in every environment that you preffer I just like the fact of
 
 # How to run this script
 
-Currently I do run a nmap scan with the following arguments {nmap -p 1-25000 -traceroute -O -oX scan_results.xml --reason <ip-address-range>}
+Currently I do run a nmap scan with the following arguments {nmap -p 1-25000 -traceroute -O -oX scan_results.xml --reason ip-address-range}
 
 # Roadmap
 
-[X] Basic functionallity of extracting data
-[ ] Setup a Docker compose to simulate a Network with different machines
-[ ] Add a script to be more user friendly
+- [x] Basic functionallity of extracting data
+- [ ] Setup a Docker compose to simulate a Network with different machines
+- [ ] Add a script to be more user friendly
 
 # You like my Work? Support me!
 
