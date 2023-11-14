@@ -14,6 +14,8 @@ You could run this in every environment that you preffer I just like the fact of
 
 Currently I do run a nmap scan with the following arguments {nmap -p 1-25000 -traceroute -O -oX scan_results.xml --reason ip-address-range}
 
+You need to change the database ip and password aswell as the username to connect to your personal postgresDB in order to function correctly
+
 # Roadmap
 
 - [x] Basic functionallity of extracting data
