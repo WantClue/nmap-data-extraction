@@ -60,6 +60,7 @@ db_params['database'] = database_name
 conn = psycopg2.connect(**db_params)
 cursor = conn.cursor()
 
+
 # Create the "ip_addresses" table if it doesn't exist
 create_ip_table_query = """
 CREATE TABLE IF NOT EXISTS ip_addresses (
@@ -95,24 +96,43 @@ CREATE TABLE IF NOT EXISTS os (
 );
 """
 
+# Create table for the OS version that has been guessed
+create_timestamp_table_query = """
+CREATE TABLE IF NOT EXISTS timestamp (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP
+);
+"""
+
+create_cve_table_query = """
+CREATE TABLE IF NOT EXISTS cve (
+    id SERIAL PRIMARY KEY,
+    service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+    cve_id VARCHAR(50) NOT NULL
+);    
+"""
+
+create_info_table_query = """
+CREATE TABLE IF NOT EXISTS info (
+    id SERIAL PRIMARY KEY,
+    service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+    info_id VARCHAR(50) NOT NULL
+)
+"""
 #execute the create table queries
 cursor.execute(create_ip_table_query)
 cursor.execute(create_ports_table_query)
 cursor.execute(create_services_table_query)
 cursor.execute(create_os_table_query)
+cursor.execute(create_timestamp_table_query)
+cursor.execute(create_cve_table_query)
+cursor.execute(create_info_table_query)
 
-
-#os detection needs to be added
-# will be needed to guess the os if not 100% sure it shall proceed and make the best guess
-
-# needed to extend the database with the timestamp of the scan
-cursor.execute("ALTER TABLE ip_addresses ADD COLUMN IF NOT EXISTS scan_timestamp timestamp")
 
 # Function to determine the most probable or generalize OS
 def determine_probable_os(os_matches):
     # Logic to determine the most probable or generalize OS based on the provided data
-    # For example, you can choose the OS with the highest accuracy or generalize to OS family
-    # Implement your logic here...
+    # For example, it can choose the OS with the highest accuracy or generalize to OS family
     highest_accuracy_match = max(os_matches, key=lambda x: int(x.get('accuracy', 0)))
     probable_os = highest_accuracy_match.find('osclass').get('osfamily') if highest_accuracy_match else "Unknown"
     
@@ -124,6 +144,17 @@ for host in root.findall('.//host'):
     ports = []
     services = []
     
+    # Insert data into the PostgreSQL database
+    cursor.execute("INSERT INTO ip_addresses (ip_address) VALUES (%s) ON CONFLICT (ip_address) DO NOTHING RETURNING id", (ip_address,))
+    cursor.execute("INSERT INTO timestamp (timestamp) VALUES (to_timestamp(%s)) RETURNING id", (scan_timestamp,))
+    ip_address_id = cursor.fetchone()
+    
+
+    if ip_address_id is not None:
+        ip_address_id = ip_address_id[0]
+    else:
+        cursor.execute("SELECT id FROM ip_addresses WHERE ip_address = %s", (ip_address,))
+        ip_address_id = cursor.fetchone()[0]
 
     # Extract OS information
     os_matches = host.findall('.//osmatch')
@@ -137,20 +168,26 @@ for host in root.findall('.//host'):
         service_elem = port.find('service')
         if service_elem is not None:
            service = service_elem.get('name')
+           version = service_elem.get('version')  # Extract version information
+           # Assuming you have the ip_address_id available
+           cursor.execute("SELECT id FROM services WHERE ip_address_id = %s AND service_name = %s", (ip_address_id, service))
+           service_entry = cursor.fetchone()
+
+           if service_entry is not None:
+                # Service already exists, use its id
+                service_id = service_entry[0]
+           else:
+                # Service doesn't exist, insert it and get the id
+                cursor.execute("INSERT INTO services (ip_address_id, service_name) VALUES (%s, %s) RETURNING id", (ip_address_id, service))
+                service_id = cursor.fetchone()[0]
+
+            # Now insert the version information into the info table
+           cursor.execute("INSERT INTO info (service_id, info_id) VALUES (%s, %s)", (service_id, f"Version: {version}"))
+
         else:
            service = "Unknown"
         ports.append(port_number)
         services.append(service)
-
-    # Insert data into the PostgreSQL database
-    cursor.execute("INSERT INTO ip_addresses (ip_address, scan_timestamp) VALUES (%s, to_timestamp(%s)) ON CONFLICT (ip_address) DO NOTHING RETURNING id", (ip_address, scan_timestamp))
-    ip_address_id = cursor.fetchone()
-
-    if ip_address_id is not None:
-        ip_address_id = ip_address_id[0]
-    else:
-        cursor.execute("SELECT id FROM ip_addresses WHERE ip_address = %s", (ip_address,))
-        ip_address_id = cursor.fetchone()[0]
 
     for port, service in zip(ports, services):
         cursor.execute("INSERT INTO ports (ip_address_id, port_number) VALUES (%s, %s)",
