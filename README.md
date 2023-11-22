@@ -19,6 +19,7 @@ You need to change the database ip and password aswell as the username to connec
 # Example nmap scan
 
 To have an xml file that would be able to be read by this python parser this is some example I used to get the appropiate results
+Keep in mind that you need to change the ip range you want to change appropiate.
 
 ```
 nmap -p 1-25000 --script vulners -O -sV -oX scan_result_3.xml --reason 10.0.10.0/24
@@ -47,7 +48,7 @@ ORDER BY
 
 - [x] Basic functionallity of extracting data
 - [ ] Setup a Docker compose to simulate a Network with different machines
-- [ ] Add a script to be more user friendly
+- [ ] Add a script to be more user friendly (will add in functions to select ranges and more)
 
 # You like my Work? Support me!
 
