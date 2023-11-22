@@ -78,12 +78,20 @@ CREATE TABLE IF NOT EXISTS ports (
 );
 """
 
+# Add unique constraint to the ports table
+add_ports_unique_constraint_query = """
+ALTER TABLE ports
+ADD CONSTRAINT ports_unique_constraint UNIQUE (ip_address_id, port_number);
+"""
+
 # Creqate the "services" table if it doesn't exist
 create_services_table_query = """
 CREATE TABLE IF NOT EXISTS services (
     id SERIAL PRIMARY KEY,
     ip_address_id INTEGER REFERENCES ip_addresses(id) ON DELETE CASCADE,
-    service_name VARCHAR(50)
+    port_id INTEGER REFERENCES ports(id) ON DELETE CASCADE,
+    service_name VARCHAR(50),
+    CONSTRAINT services_unique_constraint UNIQUE (ip_address_id, port_id, service_name)
 );
 """
 
@@ -122,6 +130,7 @@ CREATE TABLE IF NOT EXISTS info (
 #execute the create table queries
 cursor.execute(create_ip_table_query)
 cursor.execute(create_ports_table_query)
+cursor.execute(add_ports_unique_constraint_query)
 cursor.execute(create_services_table_query)
 cursor.execute(create_os_table_query)
 cursor.execute(create_timestamp_table_query)
@@ -143,12 +152,11 @@ for host in root.findall('.//host'):
     ip_address = host.find('address[@addrtype="ipv4"]').get('addr')
     ports = []
     services = []
-    
+
     # Insert data into the PostgreSQL database
     cursor.execute("INSERT INTO ip_addresses (ip_address) VALUES (%s) ON CONFLICT (ip_address) DO NOTHING RETURNING id", (ip_address,))
     cursor.execute("INSERT INTO timestamp (timestamp) VALUES (to_timestamp(%s)) RETURNING id", (scan_timestamp,))
     ip_address_id = cursor.fetchone()
-    
 
     if ip_address_id is not None:
         ip_address_id = ip_address_id[0]
@@ -165,40 +173,38 @@ for host in root.findall('.//host'):
 
     for port in host.findall('.//port'):
         port_number = port.get('portid')
+
+	# Extract service information
         service_elem = port.find('service')
         if service_elem is not None:
-           service = service_elem.get('name')
-           version = service_elem.get('version')  # Extract version information
-           # Assuming you have the ip_address_id available
-           cursor.execute("SELECT id FROM services WHERE ip_address_id = %s AND service_name = %s", (ip_address_id, service))
-           service_entry = cursor.fetchone()
+            service = service_elem.get('name')
+            version = service_elem.get('version')
+    
+            # Insert port into the database
+            cursor.execute("INSERT INTO ports (ip_address_id, port_number) VALUES (%s, %s) ON CONFLICT (ip_address_id, port_number) DO NOTHING", (ip_address_id, port_number))
+            cursor.execute("SELECT id FROM ports WHERE ip_address_id = %s AND port_number = %s", (ip_address_id, port_number))
+            port_id = cursor.fetchone()[0]
 
-           if service_entry is not None:
-                # Service already exists, use its id
-                service_id = service_entry[0]
-           else:
-                # Service doesn't exist, insert it and get the id
-                cursor.execute("INSERT INTO services (ip_address_id, service_name) VALUES (%s, %s) RETURNING id", (ip_address_id, service))
-                service_id = cursor.fetchone()[0]
+            # Insert service into the database
+            cursor.execute("INSERT INTO services (ip_address_id, port_id, service_name) VALUES (%s, %s, %s) ON CONFLICT (ip_address_id, port_id, service_name) DO NOTHING RETURNING id", (ip_address_id, port_id, service))
+            service_id = cursor.fetchone()[0]
 
-            # Now insert the version information into the info table
-           cursor.execute("INSERT INTO info (service_id, info_id) VALUES (%s, %s)", (service_id, f"Version: {version}"))
+            # Insert version into the database
+            cursor.execute("INSERT INTO info (service_id, info_id) VALUES (%s, %s)", (service_id, f"Version: {version}"))
+    
 
         else:
-           service = "Unknown"
-        ports.append(port_number)
-        services.append(service)
+            # If no service name or version, insert as "Unknown"
+            cursor.execute("INSERT INTO ports (ip_address_id, port_number) VALUES (%s, %s) RETURNING id", (ip_address_id, port_number))
+            port_id = cursor.fetchone()[0]
 
-    for port, service in zip(ports, services):
-        cursor.execute("INSERT INTO ports (ip_address_id, port_number) VALUES (%s, %s)",
-                       (ip_address_id, port))
-        cursor.execute("INSERT INTO services (ip_address_id,service_name) VALUES (%s, %s)",
-                       (ip_address_id, service))
+            cursor.execute("INSERT INTO services (ip_address_id, port_id, service_name) VALUES (%s, %s, %s) RETURNING id", (ip_address_id, port_id, "Unknown"))
+            service_id = cursor.fetchone()[0]
 
+            cursor.execute("INSERT INTO info (service_id, info_id) VALUES (%s, %s)", (service_id, "Version: Unknown"))
+    
     conn.commit()
 
 # Close the database connection
 cursor.close()
 conn.close()
-
-

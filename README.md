@@ -16,6 +16,33 @@ Currently I do run a nmap scan with the following arguments {nmap -p 1-25000 -tr
 
 You need to change the database ip and password aswell as the username to connect to your personal postgresDB in order to function correctly
 
+# Example nmap scan
+
+To have an xml file that would be able to be read by this python parser this is some example I used to get the appropiate results
+
+```
+nmap -p 1-25000 --script vulners -O -sV -oX scan_result_3.xml --reason 10.0.10.0/24
+```
+
+# Example usecases for the postgresDb
+
+This is an example to get the ip_addresses, ports, service_names fora specific ip address e.g. 10.0.10.5
+
+```
+SELECT
+    ip_addresses.ip_address,
+    ports.port_number,
+    services.service_name
+FROM
+    ip_addresses
+LEFT JOIN ports ON ip_addresses.id = ports.ip_address_id
+LEFT JOIN services ON ports.id = services.port_id
+WHERE
+    ip_addresses.ip_address = '10.0.10.5'
+ORDER BY
+    ports.port_number;
+```
+
 # Roadmap
 
 - [x] Basic functionallity of extracting data
