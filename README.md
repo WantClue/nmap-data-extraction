@@ -33,11 +33,13 @@ This is an example to get the ip_addresses, ports, service_names fora specific i
 SELECT
     ip_addresses.ip_address,
     ports.port_number,
-    services.service_name
+    services.service_name,
+    info.info_id
 FROM
     ip_addresses
 LEFT JOIN ports ON ip_addresses.id = ports.ip_address_id
 LEFT JOIN services ON ports.id = services.port_id
+LEFT JOIN info ON services.id = info.service_id
 WHERE
     ip_addresses.ip_address = '10.0.10.5'
 ORDER BY
