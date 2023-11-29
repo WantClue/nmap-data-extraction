@@ -17,7 +17,7 @@ initial_conn = psycopg2.connect(**db_params)
 initial_cursor = initial_conn.cursor()
 
 # Parse the Nmap scan result XML file
-xml_file = 'scan_results.xml'
+xml_file = 'test2.xml'
 tree = ET.parse(xml_file)
 root = tree.getroot()
 # extract the timestamp
@@ -116,8 +116,20 @@ create_cve_table_query = """
 CREATE TABLE IF NOT EXISTS cve (
     id SERIAL PRIMARY KEY,
     service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
-    cve_id VARCHAR(50) NOT NULL
+    cve_id VARCHAR(50) NOT NULL,
+    cvss VARCHAR(255)
 );    
+"""
+
+create_cve_service_table_query = """
+CREATE TABLE IF NOT EXISTS service_cve (
+    id SERIAL PRIMARY KEY,
+    ip_address VARCHAR(15) NOT NULL,
+    port_number INTEGER NOT NULL,
+    service_name VARCHAR(255) NOT NULL,
+    service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+    cve_id INTEGER REFERENCES cve(id) ON DELETE CASCADE
+);
 """
 
 create_info_table_query = """
@@ -135,6 +147,7 @@ cursor.execute(create_services_table_query)
 cursor.execute(create_os_table_query)
 cursor.execute(create_timestamp_table_query)
 cursor.execute(create_cve_table_query)
+cursor.execute(create_cve_service_table_query)
 cursor.execute(create_info_table_query)
 
 
@@ -176,10 +189,14 @@ for host in root.findall('.//host'):
 
 	# Extract service information
         service_elem = port.find('service')
+
         if service_elem is not None:
             service = service_elem.get('name')
             version = service_elem.get('version')
-    
+
+            # Debugging prints
+            print(f"Service: {service}, Version: {version}")    
+
             # Insert port into the database
             cursor.execute("INSERT INTO ports (ip_address_id, port_number) VALUES (%s, %s) ON CONFLICT (ip_address_id, port_number) DO NOTHING", (ip_address_id, port_number))
             cursor.execute("SELECT id FROM ports WHERE ip_address_id = %s AND port_number = %s", (ip_address_id, port_number))
@@ -191,7 +208,30 @@ for host in root.findall('.//host'):
 
             # Insert version into the database
             cursor.execute("INSERT INTO info (service_id, info_id) VALUES (%s, %s)", (service_id, f"Version: {version}"))
-    
+
+            # Check if there is CVE information for the service
+            for table in port.findall('.//table'):
+                elem_type = table.find('elem[@key="type"]')
+                elem_text = table.find('elem[@key="id"]')
+                if elem_type is not None and elem_text is not None and elem_type.text == "cve":
+                    cve_id = elem_text.text
+                    cvss_elem = table.find('elem[@key="cvss"]')
+                    cvss = cvss_elem.text if cvss_elem is not None else None
+
+                    # Check if the CVE entry already exists in the database
+                    cursor.execute("SELECT id FROM cve WHERE cve_id = %s", (cve_id,))
+                    cve_entry = cursor.fetchone()
+
+                    if not cve_entry:
+                        # If the CVE entry doesn't exist, insert a new row into the cve table
+                        cursor.execute("INSERT INTO cve (cve_id, cvss) VALUES (%s, %s) RETURNING id", (cve_id, cvss))
+                        new_cve_id = cursor.fetchone()[0]
+
+                        # Associate the new CVE entry with the service
+                        cursor.execute("INSERT INTO service_cve (ip_address, port_number, service_name, service_id, cve_id) VALUES (%s, %s, %s, %s, %s)",
+                           (ip_address, port_number, service, service_id, new_cve_id))
+
+            
 
         else:
             # If no service name or version, insert as "Unknown"
