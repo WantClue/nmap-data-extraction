@@ -63,7 +63,7 @@ nmap -p 1-25000 --script vulners -O -sV -oX scan_result.xml --reason 10.0.10.0/2
 
 # Example usecases for the postgresDb
 
-This is an example to get the ip_addresses, ports, service_names fora specific ip address e.g. 10.0.10.5
+These are examples to get the ip_addresses, ports, service_names fora specific ip address e.g. 10.0.10.5. Change thise ip address according to your device you wanna get information about.
 
 ```
 SELECT
@@ -78,6 +78,27 @@ LEFT JOIN services ON ports.id = services.port_id
 LEFT JOIN info ON services.id = info.service_id
 WHERE
     ip_addresses.ip_address = '10.0.10.5'
+ORDER BY
+    ports.port_number;
+```
+
+```
+SELECT
+    ip_addresses.ip_address,
+    ports.port_number,
+    services.service_name,
+    info.info_id,
+    cve.cve_id,
+    cve.cvss
+FROM
+    ip_addresses
+LEFT JOIN ports ON ip_addresses.id = ports.ip_address_id
+LEFT JOIN services ON ports.id = services.port_id
+LEFT JOIN info ON services.id = info.service_id
+LEFT JOIN service_cve ON services.id = service_cve.service_id
+LEFT JOIN cve ON service_cve.cve_id = cve.id
+WHERE
+    ip_addresses.ip_address = '10.0.10.19'
 ORDER BY
     ports.port_number;
 ```

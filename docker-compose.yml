@@ -1,2 +1,57 @@
 #setup a PostgresDB and potential add more users to the defined network to have a scannable network
 
+version: "3"
+
+services:
+  nginx_container:
+    image: nginx:latest # simple webserver
+    container_name: nginx-container
+    ports:
+      - "8080:80" # Exposes port 80
+    networks:
+      - test_network
+
+  debian_container:
+    image: debian:latest
+    container_name: debian-container
+    command: tail -f /dev/null
+    ports:
+      - "21:21" # Map host port 21 to container port 21
+    volumes:
+      - ./ftp:/srv/ftp # Mount a local directory as the FTP server content
+    networks:
+      - test_network
+
+  centos_container:
+    image: centos:latest
+    container_name: centos-container
+    command: tail -f /dev/null
+    ports:
+      - "8081:8081" # Expose port 8081
+    networks:
+      - test_network
+
+  alpine_container:
+    image: alpine:latest
+    container_name: alpine-container
+    command: tail -f /dev/null # doing nothing
+    networks:
+      - test_network
+
+  busybox_container:
+    image: busybox:latest
+    container_name: busybox-container # doing nothing
+    command: tail -f /dev/null
+    networks:
+      - test_network
+
+  windows_container:
+    image: mcr.microsoft.com/windows/nanoserver:latest
+    container_name: windows-container
+    command: powershell.exe Start-Sleep -s 9999
+    networks:
+      - test_network
+
+networks:
+  test_network:
+    driver: bridge
