@@ -1,4 +1,4 @@
-# NMAP XML to PostgreSQL Databse Importer
+# NMAP XML to PostgreSQL Database Importer
 
 ## This is a proof of concept for extract Data from an nmap scan into a postgresDB
 
@@ -112,12 +112,32 @@ ORDER BY
 # Roadmap
 
 - [x] Basic functionallity of extracting data
-- [ ] Setup a Docker compose to simulate a Network with different machines
+- [x] Setup a Docker compose to simulate a Network with different machines
 - [ ] Add a script to be more user friendly (will add in functions to select ranges and more)
 
 ## Disclaimer
 
 This script is provided as-is, and the user is responsible for understanding and adapting it to their specific use case. Use caution when working with production databases, and always have backups in place.
+
+---
+
+# SNMP network client data extraction
+
+The idea of the snmp client data extraction is to have another reliable source to verify the data and expand the knowledge about the devices we do have in our network. This requieres obviously network access and access to the remote devices. In this example we will use the Net-SNMP package
+
+## Links
+
+[Net-SNMP](http://www.net-snmp.org/)
+
+# Installation
+
+## Debian based systems
+
+` sudo apt-get install snmp snmpd`
+
+## For Windows
+
+SNMP is included in Windows features. You can enable it through the Control Panel.
 
 # You like my Work? Support me!
 
