@@ -103,6 +103,10 @@ ORDER BY
     ports.port_number;
 ```
 
+# Script usage
+
+There is a script `scanner.sh`that allows you to guide thru the PostgreSQLDB creation and query process more easily.
+
 # Notes
 
 - The script assumes a specific structure in the Nmap XML file, and any deviations may require adjustments in the code.
@@ -113,7 +117,7 @@ ORDER BY
 
 - [x] Basic functionallity of extracting data
 - [x] Setup a Docker compose to simulate a Network with different machines
-- [ ] Add a script to be more user friendly (will add in functions to select ranges and more)
+- [x] Add a script to be more user friendly (will add in functions to select ranges and more)
 
 ## Disclaimer
 
