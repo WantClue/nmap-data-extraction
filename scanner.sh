@@ -19,6 +19,11 @@ GREEN='\033[1;32m'
 CYAN='\033[1;36m'
 NC='\033[0m'
 
+#os
+function getOS() {
+  grep -E '^(VERSION|NAME)=' /etc/os-release | cut -d '"' -f2
+}
+
 
 if ! figlet -v > /dev/null 2>&1; then
 	sudo apt-get update -y > /dev/null 2>&1
@@ -76,19 +81,57 @@ function startPostgres() {
     sleep 5
 }
 
+function listDatabases() {
+    read -rp "Enter PostgreSQL host (default: localhost): " POSTGRES_HOST
+    POSTGRES_HOST=${POSTGRES_HOST:-localhost}
+
+    read -rp "Enter PostgreSQL port (default: 5432): " POSTGRES_PORT
+    POSTGRES_PORT=${POSTGRES_PORT:-5432}
+
+    read -rp "Enter PostgreSQL username: " POSTGRES_USER
+    read -rsp "Enter PostgreSQL password: " POSTGRES_PASSWORD
+    echo
+
+    # Use psql to list databases
+    databases=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -l -t | cut -d'|' -f1 | sed -e '/^\s*$/d')
+    
+    if [ -z "$databases" ]; then
+        echo -e "\nNo databases found."
+        return
+    fi
+
+    # Prompt user to select a database
+    PS3="Select a database: "
+    select db_name in $databases; do
+        if [ -n "$db_name" ]; then
+            break
+        else
+            echo "Invalid option. Please select a valid database."
+        fi
+    done
+
+    read -rp "Enter your SQL query: " sql_query
+
+    # Use psql to run the provided SQL query on the selected database
+    PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$db_name" -c "$sql_query"
+
+    read -p "Press ENTER to continue..."
+}
+
 
 while true; do
     clear
     sleep 1
+
     echo -e "${BLUE}"
     figlet -f slant "Toolbox"
     echo -e "${YELLOW}================================================================${NC}"
-    echo -e "${GREEN}OS: Ubuntu 16/18/19/20, Debian 9/10 ${NC}"
+    echo -e "${GREEN}OS: $(getOS) ${NC}"
     echo -e "${GREEN}Created by: WantClue${NC}"
     echo -e "${YELLOW}================================================================${NC}"
     echo -e "${CYAN}1  - Setup PostgresDB${NC}"
     echo -e "${CYAN}2  - Run PostgresDB Container${NC}"
-    echo -e "${CYAN}3  - Placeholder${NC}"
+    echo -e "${CYAN}3  - Database query${NC}"
     echo -e "${CYAN}4  - Abort${NC}"
     echo -e "${YELLOW}================================================================${NC}"
 
@@ -108,7 +151,7 @@ while true; do
     3) 
     		clear
     		sleep 1
-    		placeholder
+    		listDatabases
      ;;
      4) 
     		clear
