@@ -118,8 +118,7 @@ There is a script `scanner.sh`that allows you to guide thru the PostgreSQLDB cre
 - [x] Basic functionallity of extracting data
 - [x] Setup a Docker compose to simulate a Network with different machines
 - [x] Add a script to be more user friendly (will add in functions to select ranges and more)
-- [ ] Documentation better
-- [ ] Way more explaining
+- [x] Add an extraction tool for the PostgreSQL Database to extract a specific Database
 
 ## Disclaimer
 
